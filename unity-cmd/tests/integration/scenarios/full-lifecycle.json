@@ -4,7 +4,33 @@
     {
       "name": "ping",
       "command": "ping",
-      "expect": { "ok": true }
+      "expect": { "ok": true },
+      "expectConnectorBuild": 5
+    },
+    {
+      "name": "list_catalog",
+      "command": "list",
+      "expect": { "ok": true },
+      "expectCatalog": {
+        "commands": [
+          "compile",
+          "editor.console",
+          "editor.play",
+          "ping"
+        ]
+      }
+    },
+    {
+      "name": "console_errors",
+      "command": "console",
+      "args": ["--type", "error,warning", "--lines", "5"],
+      "expect": { "ok": true, "dataHas": ["count", "entries"] }
+    },
+    {
+      "name": "logs_alias",
+      "command": "logs",
+      "args": ["--lines", "1"],
+      "expect": { "ok": true, "dataHas": ["count"] }
     },
     {
       "name": "enter_play",
@@ -33,17 +59,16 @@
       "expect": { "data": { "channel": "editor" } }
     },
     {
+      "name": "connector_state",
+      "command": "connector.state",
+      "expect": { "ok": true, "dataHas": ["is_playing", "is_compiling"] }
+    },
+    {
       "name": "compile",
       "command": "compile",
       "expectJob": "succeeded",
-      "timeoutMs": 20000,
+      "timeoutMs": 120000,
       "allowConnectionRetry": true
-    },
-    {
-      "name": "console",
-      "command": "console",
-      "args": ["--type", "error,warning,log", "--lines", "10"],
-      "expect": { "ok": true }
     }
   ]
 }

@@ -10,21 +10,19 @@ namespace UnityCliConnector
         {
             if (path == "/health" && method == "GET")
             {
-                writeJson(200, new Dictionary<string, object> { ["ok"] = true, ["host"] = "runtime" });
+                writeJson(200, new Dictionary<string, object>
+                {
+                    ["ok"] = true,
+                    ["host"] = RuntimeCommandHost.Instance.HostName,
+                });
                 return true;
             }
 
             if (path == "/command" && method == "POST")
             {
-                var request = CommandHttpHelper.ParseCommandRequest(body, "runtime");
-                var result = CommandRouter.Route(request, true, "runtime");
-                writeJson(result.Ok ? 200 : 400, new Dictionary<string, object>
-                {
-                    ["ok"] = result.Ok,
-                    ["data"] = result.Data,
-                    ["error"] = result.Error,
-                    ["request_id"] = result.RequestId,
-                });
+                var request = CommandHttpHelper.ParseCommandRequest(body, RuntimeCommandHost.Instance.HostName);
+                var post = RuntimeCommandHost.Instance.HandleCommand(request);
+                writeJson(post.StatusCode, post.Body);
                 return true;
             }
 

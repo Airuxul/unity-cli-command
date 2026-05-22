@@ -79,8 +79,11 @@ Port: `UNITY_CMD_PORT` or `6400 + hash(dataPath) % 800`.
 
 - `Core/Http/HttpServer` — listener loop and JSON responses
 - `Core/Http/CommandPipeline` — shared sync (200) vs job (202) handling
+- `Core/ICommandHost` — host-specific dispatch entry (`EditorCommandHost`, `RuntimeCommandHost`)
 - `Editor/EditorRequestDispatcher` — `/health`, `/list`, `/command`, `/jobs/{id}`
 - `Runtime/RuntimeRequestDispatcher` — `/health`, `/command` only
+
+`CommandListBuilder` delegates to `CommandCatalog` (single catalog source).
 
 ## Editor tool commands
 
@@ -100,3 +103,14 @@ Port: `UNITY_CMD_PORT` or `6400 + hash(dataPath) % 800`.
 ## Main-thread execution
 
 Sync commands use `EditorCommandExecutor.ExecuteSync` with `delayCall` + wait when invoked from HTTP thread.
+
+## Tests (EditMode)
+
+Optional UTF via Unity Test Framework (`Tests/Editor/`):
+
+```bash
+# From unity-cmd, with UNITY_PROJECT_PATH set to a Unity project that references this package:
+# Run EditMode tests in Unity Test Runner, or your CI Unity batch.
+```
+
+Covers `CommandJobCatalog`, `CommandDiscovery` (ping, compile job, console), and related pure logic.

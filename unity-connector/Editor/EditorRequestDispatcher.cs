@@ -15,7 +15,7 @@ namespace UnityCliConnector
                 writeJson(200, new Dictionary<string, object>
                 {
                     ["ok"] = true,
-                    ["host"] = "editor",
+                    ["host"] = EditorCommandHost.Instance.HostName,
                     ["connector_build"] = ConnectorBuild,
                 });
                 return true;
@@ -43,33 +43,13 @@ namespace UnityCliConnector
 
             if (path == "/command" && method == "POST")
             {
-                var request = CommandHttpHelper.ParseCommandRequest(body, "editor");
-                var post = CommandPipeline.HandlePost(
-                    request,
-                    CommandJobCatalog.GetCompletionKind,
-                    AcceptJob,
-                    EditorCommandExecutor.ExecuteSync);
+                var request = CommandHttpHelper.ParseCommandRequest(body, EditorCommandHost.Instance.HostName);
+                var post = EditorCommandHost.Instance.HandleCommand(request);
                 writeJson(post.StatusCode, post.Body);
                 return true;
             }
 
             return false;
-        }
-
-        private static Dictionary<string, object> AcceptJob(CommandRequest request, string completion)
-        {
-            return EditorMainThread.Run(() =>
-            {
-                var job = JobManager.Create(request.Command, completion, request.RequestId);
-                EditorCommandExecutor.StartJobSideEffect(request.Command, request.Parameters);
-                return new Dictionary<string, object>
-                {
-                    ["ok"] = true,
-                    ["job_id"] = job.Id,
-                    ["completion"] = completion,
-                    ["request_id"] = request.RequestId,
-                };
-            }, TimeSpan.FromSeconds(30));
         }
 
         private static Dictionary<string, object> JobToResponse(JobRecord job)

@@ -2,6 +2,7 @@ import { sendCommand, ping, fetchCatalog } from './client/command.js';
 import { selectInstance } from './client/target.js';
 import { resolveTimeoutMs } from './timeout.js';
 import { loadCatalog, resolveRemoteCommand, LOCAL_META } from './catalog.js';
+import { coerceParameters } from './params.js';
 
 export function parseArgs(argv) {
   const args = [...argv];
@@ -84,15 +85,6 @@ export async function runCommand(command, flags, timeoutMs) {
 
 function printJson(obj) {
   console.log(JSON.stringify(obj, null, 2));
-}
-
-function coerceParameters(flags) {
-  const out = { ...flags };
-  if (out.compile === 'true' || out.compile === '1') out.compile = true;
-  if (out.compile === 'false' || out.compile === '0') out.compile = false;
-  if (out.clear === 'true' || out.clear === '1') out.clear = true;
-  if (out.force === 'true' || out.force === '1') out.force = true;
-  return out;
 }
 
 function printHelp() {

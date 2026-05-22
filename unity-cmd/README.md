@@ -21,8 +21,14 @@ unity-cmd editor.play
 unity-cmd echo.editor --message hello
 unity-cmd recompile          # recommended after editing unity-connector (120s job timeout)
 unity-cmd compile            # same as recompile
-unity-cmd editor.recompile   # connector-native alias
+unity-cmd console --type error,warning --lines 20
+unity-cmd logs               # alias → editor.console
+unity-cmd menu --menu_path "File/Save Project"
+unity-cmd screenshot --view game --output_path Screenshots/game.png
+unity-cmd refresh --compile true   # AssetDatabase refresh + compile job
 ```
+
+Commands and aliases come from Unity (`POST /list`), cached under `~/.unity-cmd/cache/`. Local-only: `ping`, `list`, `help`.
 
 ## Environment
 
@@ -40,14 +46,15 @@ unity-cmd editor.recompile   # connector-native alias
 | `npm run verify` | Unit tests + documentation version check |
 | `npm run test:unit` | Node unit tests only |
 | `npm run test:integration` | Full lifecycle against an open Editor (skips if none) |
+| `npm run test:all` | `verify` then `test:integration` |
 | `npm run doc:check` | Sync doc `Version:` headers with package.json |
 
 ## Integration tests
 
 1. Install `unity-connector` in your Unity project and open it in the Editor.
-2. Optionally set `UNITY_CMD_PROJECT` to your project path.
+2. Set `UNITY_CMD_PROJECT` to your project path when multiple Editors are open.
 3. Run `npm run test:integration`.
 
-If no instance is found within 20 seconds, the runner logs hints and exits `0` (skipped).
+Scenario `tests/integration/scenarios/full-lifecycle.json` covers catalog, console, play/stop, runtime echo, connector state, and compile.
 
-See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for protocol details.
+See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) and [../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).

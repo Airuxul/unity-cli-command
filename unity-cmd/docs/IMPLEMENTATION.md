@@ -16,6 +16,7 @@ Thin HTTP client and argv front-end. No Unity-specific business logic lives here
 | `src/client/job.js` | Poll `GET /jobs/{id}` until terminal state |
 | `src/client/command.js` | `POST /command`, `fetchCatalog` via `POST /list` |
 | `src/catalog.js` | Cache catalog under `~/.unity-cmd/cache/`, resolve aliases/timeouts |
+| `src/params.js` | Coerce CLI flags (`compile`, `clear`, `force`) for Unity JSON |
 | `src/dispatch.js` | CLI routing for `ping`, `list`, `help`, arbitrary commands |
 | `bin/unity-cmd.js` | Entry point |
 
@@ -52,3 +53,12 @@ Local-only commands: `ping`, `list`, `help`.
 ## Extending
 
 Add `[CliCommand]` on a static class in the connector (with `IsJob`, `Completion`, `Aliases`, `DefaultTimeoutMs` as needed). No `unity-cmd` code changes unless you add new local meta commands.
+
+## Tests
+
+| Suite | Path | Requires Unity |
+|-------|------|----------------|
+| Unit | `tests/unit/*.test.js` | No |
+| Integration | `tests/integration/runner.mjs` | Yes (attach) |
+
+Unit tests cover catalog resolution, job polling, target selection, timeout, and parameter coercion.

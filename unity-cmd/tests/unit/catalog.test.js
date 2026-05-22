@@ -77,3 +77,15 @@ test('refresh with compile flag uses compile timeout', () => {
   assert.equal(r.allowConnectionRetry, true);
   assert.equal(r.minTimeoutMs, 120_000);
 });
+
+test('bootstrap aliases without catalog entries', () => {
+  const empty = {
+    commands: [],
+    commands_by_name: {},
+    alias_to_command: {},
+  };
+  const r = resolveRemoteCommand('console', {}, empty);
+  assert.equal(r.command, 'editor.console');
+  const logs = resolveRemoteCommand('logs', {}, empty);
+  assert.equal(logs.command, 'editor.console');
+});

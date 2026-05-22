@@ -7,6 +7,8 @@ Monorepo for controlling Unity Editor from the command line.
 | [unity-cmd](unity-cmd/) | Node.js CLI — sends HTTP commands to the connector |
 | [unity-connector](unity-connector/) | Unity UPM package — HTTP server and command router inside the Editor / Player |
 
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design goals and completion checklist.
+
 ## Install the connector
 
 Add to your Unity project's `Packages/manifest.json`:
@@ -21,7 +23,7 @@ Add to your Unity project's `Packages/manifest.json`:
 
 Adjust the path to where you cloned this repo. Open the project in Unity once so the connector starts and writes a heartbeat file.
 
-## CLI
+## CLI quick reference
 
 ```bash
 cd unity-cmd
@@ -29,10 +31,20 @@ npm install
 npm link   # optional: global `unity-cmd` command
 
 unity-cmd ping
-unity-cmd recompile   # trigger script compile in open Editor
-unity-cmd list
+unity-cmd list                    # command catalog from Unity (cached)
+unity-cmd recompile               # script compile job (120s default)
+unity-cmd console --type error,warning --lines 20
+unity-cmd logs --lines 10         # alias of console
 unity-cmd editor.play
-unity-cmd echo.editor
+unity-cmd menu --menu_path "File/Save Project"
+unity-cmd screenshot --view game
+```
+
+After changing **unity-connector** sources, reload scripts in the open Editor:
+
+```bash
+unity-cmd refresh --compile true --timeout 120000
+# or: unity-cmd recompile
 ```
 
 ## Environment variables
@@ -51,8 +63,9 @@ All npm scripts live under `unity-cmd/`:
 
 ```bash
 cd unity-cmd
-npm run verify              # unit tests + doc check (no Unity required)
-npm run test:integration    # full lifecycle against an open Editor; skips with a log if none
+npm run verify              # unit tests + doc version check (no Unity)
+npm run test:integration    # full lifecycle against an open Editor
+npm run test:all            # verify + integration
 ```
 
 Integration tests **do not** start Unity. Open your project in the Editor first, then run `test:integration`. If no instance is found within 20s, the run logs hints and exits `0` (skipped, not failed).
@@ -62,6 +75,7 @@ Integration tests **do not** start Unity. Open your project in the Editor first,
 ```text
 unity-cli/
 ├── README.md
+├── docs/ARCHITECTURE.md
 ├── unity-cmd/
 └── unity-connector/
 ```
