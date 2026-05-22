@@ -1,0 +1,19 @@
+{
+  "name": "unity-cmd",
+  "version": "0.1.0",
+  "description": "CLI for Unity Editor via unity-connector",
+  "type": "module",
+  "bin": {
+    "unity-cmd": "./bin/unity-cmd.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "verify": "npm run test:unit && npm run doc:check",
+    "test": "npm run test:unit",
+    "test:unit": "node --test tests/unit/**/*.test.js",
+    "test:integration": "node tests/integration/runner.mjs",
+    "doc:check": "node scripts/doc-check.mjs"
+  }
+}

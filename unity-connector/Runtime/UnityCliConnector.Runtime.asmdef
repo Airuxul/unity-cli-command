@@ -1,0 +1,16 @@
+{
+  "name": "UnityCliConnector.Runtime",
+  "rootNamespace": "UnityCliConnector",
+  "references": [
+    "UnityCliConnector.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

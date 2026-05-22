@@ -1,0 +1,10 @@
+node_modules/
+unity-cmd/tests/integration/out/
+*.user
+*.csproj
+*.sln
+Library/
+Temp/
+Obj/
+Logs/
+.vs/

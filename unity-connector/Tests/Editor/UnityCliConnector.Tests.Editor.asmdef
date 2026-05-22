@@ -1,0 +1,22 @@
+{
+  "name": "UnityCliConnector.Tests.Editor",
+  "rootNamespace": "UnityCliConnector.Tests",
+  "references": [
+    "UnityCliConnector.Core",
+    "UnityCliConnector.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ]
+}

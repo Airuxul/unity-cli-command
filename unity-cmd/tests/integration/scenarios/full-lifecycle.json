@@ -1,0 +1,43 @@
+{
+  "name": "full-lifecycle",
+  "steps": [
+    {
+      "name": "ping",
+      "command": "ping",
+      "expect": { "ok": true }
+    },
+    {
+      "name": "enter_play",
+      "command": "editor.play",
+      "expectJob": "succeeded",
+      "timeoutMs": 60000
+    },
+    {
+      "name": "assert_playing",
+      "assertManifest": { "is_playing": true }
+    },
+    {
+      "name": "runtime_echo",
+      "command": "echo.runtime",
+      "expect": { "data": { "channel": "runtime" } }
+    },
+    {
+      "name": "exit_play",
+      "command": "editor.stop",
+      "expectJob": "succeeded",
+      "timeoutMs": 60000
+    },
+    {
+      "name": "editor_echo",
+      "command": "echo.editor",
+      "expect": { "data": { "channel": "editor" } }
+    },
+    {
+      "name": "compile",
+      "command": "compile",
+      "expectJob": "succeeded",
+      "timeoutMs": 20000,
+      "allowConnectionRetry": true
+    }
+  ]
+}
