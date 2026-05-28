@@ -3,6 +3,16 @@
   "description": "Editor edit mode tools → Play → editor_play runtime + editor screenshot/profiler → stop → edit mode again",
   "steps": [
     {
+      "name": "00_force_stop_before_suite",
+      "command": "stop",
+      "timeoutMs": 90000,
+      "expect": { "ok": true }
+    },
+    {
+      "name": "00b_wait_after_forced_stop",
+      "sleepMs": 1500
+    },
+    {
       "name": "01_ping_editor",
       "command": "ping",
       "expect": { "ok": true },
@@ -162,6 +172,23 @@
         "1"
       ],
       "expect": { "ok": true, "dataHas": ["mode", "frame", "children"] }
+    },
+    {
+      "name": "17b_profiler_all_frames_during_play",
+      "command": "profiler",
+      "args": [
+        "--action",
+        "hierarchy",
+        "--frames",
+        "99999",
+        "--root",
+        "PlayerLoop",
+        "--max",
+        "128",
+        "--depth",
+        "2"
+      ],
+      "expect": { "ok": true, "dataHas": ["mode", "frame_count", "items"] }
     },
     {
       "name": "18_screenshot_game_via_editor_host",

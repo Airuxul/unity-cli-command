@@ -196,9 +196,9 @@ namespace UnityCliConnector.Editor.Services
                     ["avg_calls"] = Math.Round((double)kv.Value.calls / kv.Value.count, 1),
                     ["appeared_in"] = kv.Value.count,
                 })
-                .Where(x => (float)x["avg_total_ms"] >= minTime)
+                .Where(x => Convert.ToDouble(x["avg_total_ms"]) >= minTime)
                 .OrderByDescending(x =>
-                    sortBy == "self" ? (float)x["avg_self_ms"] : (float)x["avg_total_ms"])
+                    sortBy == "self" ? Convert.ToDouble(x["avg_self_ms"]) : Convert.ToDouble(x["avg_total_ms"]))
                 .Take(maxItems)
                 .ToList();
 

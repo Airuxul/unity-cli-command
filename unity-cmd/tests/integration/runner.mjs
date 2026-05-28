@@ -11,6 +11,7 @@ function sleep(ms) {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, 'out');
+const PLAY_PROFILER_DIR = path.join(OUT_DIR, 'profiler-play');
 process.env.UNITY_CMD_CACHE_DIR ??= path.join(os.homedir(), '.unity-cmd', 'cache');
 const scenarioName =
   process.env.UNITY_CMD_SCENARIO && process.env.UNITY_CMD_SCENARIO.trim().length > 0
@@ -49,6 +50,7 @@ async function main() {
   const scenario = JSON.parse(fs.readFileSync(SCENARIO, 'utf8'));
   const results = [];
   let failed = false;
+  let inPlay = false;
 
   for (const step of scenario.steps) {
     const timeoutMs = step.timeoutMs ?? 20_000;
@@ -64,6 +66,11 @@ async function main() {
         timeoutAfter(step.name, timeoutMs),
       ]);
       clearInterval(heartbeat);
+      if (shouldExportPlayProfiler(step, inPlay, result)) {
+        exportPlayProfilerResult(scenarioName, step.name, result.output);
+      }
+      if (step.command === 'play' && result.status === 'passed') inPlay = true;
+      if ((step.command === 'stop' || step.command === 'play.stop') && result.status === 'passed') inPlay = false;
       results.push(result);
       if (result.status !== 'passed') failed = true;
       console.log(`[${result.status}] ${result.name} (${result.elapsedMs}ms)`);
@@ -116,6 +123,28 @@ function logSkip() {
 function writeReport(report) {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify(report, null, 2));
+}
+
+function shouldExportPlayProfiler(step, inPlay, result) {
+  return (
+    inPlay &&
+    step?.command === 'profiler' &&
+    result?.status === 'passed' &&
+    result?.output &&
+    typeof result.output === 'object'
+  );
+}
+
+function exportPlayProfilerResult(scenario, stepName, output) {
+  fs.mkdirSync(PLAY_PROFILER_DIR, { recursive: true });
+  const safeScenario = sanitizeFileName(scenario);
+  const safeStepName = sanitizeFileName(stepName);
+  const file = path.join(PLAY_PROFILER_DIR, `${safeScenario}-${safeStepName}.json`);
+  fs.writeFileSync(file, JSON.stringify(output, null, 2));
+}
+
+function sanitizeFileName(input) {
+  return String(input ?? 'unknown').replace(/[^a-z0-9._-]+/gi, '_');
 }
 
 main().catch((err) => {

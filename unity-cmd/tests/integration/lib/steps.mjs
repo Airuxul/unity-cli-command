@@ -153,7 +153,7 @@ function finishCliStep(step, res, started, { checkExpect = false, expectFailure 
         `error_code expected ${step.expectErrorCode}, got ${parsed.error_code ?? 'none'}`,
       );
     }
-    return { name: step.name, status: 'passed', elapsedMs: Date.now() - started };
+    return { name: step.name, status: 'passed', elapsedMs: Date.now() - started, output: parsed };
   }
 
   if (res.code !== 0 || !parsed.ok) {
@@ -233,7 +233,7 @@ function finishCliStep(step, res, started, { checkExpect = false, expectFailure 
     }
   }
 
-  return { name: step.name, status: 'passed', elapsedMs: Date.now() - started };
+  return { name: step.name, status: 'passed', elapsedMs: Date.now() - started, output: parsed };
 }
 
 function fail(name, started, error) {
