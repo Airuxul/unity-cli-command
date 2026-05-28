@@ -24,11 +24,7 @@ namespace UnityCliConnector.Commands
             if (p.Clear)
             {
                 UnityConsoleReader.Clear();
-                var clearData = new Dictionary<string, object>
-                {
-                    ["cleared"] = true,
-                };
-                CompleteSuccess(clearData);
+                CompleteSuccess(CommandResult.Ok("console cleared"));
                 return;
             }
 
@@ -47,7 +43,7 @@ namespace UnityCliConnector.Commands
                 ["types"] = p.Type ?? "error,warning",
                 ["stacktrace"] = stacktrace,
             };
-            CompleteSuccess(data);
+            CompleteSuccess(CommandResult.Ok("console entries", data));
         }
     }
 }

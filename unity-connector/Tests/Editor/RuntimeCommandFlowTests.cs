@@ -55,7 +55,7 @@ namespace UnityCliConnector.Tests
                     Debug.Log("[unity-connector][test] runtime command started");
                     Thread.Sleep(5000);
                     Debug.Log("[unity-connector][test] runtime command finished");
-                    CompleteSuccess(new Dictionary<string, object> { ["channel"] = "runtime-command", ["ok"] = true });
+                    CompleteSuccess(CommandResult.Ok("runtime command finished"));
                 });
             }
         }

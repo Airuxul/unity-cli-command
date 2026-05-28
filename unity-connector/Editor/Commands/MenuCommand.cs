@@ -42,12 +42,7 @@ namespace UnityCliConnector.Commands
                 return;
             }
 
-            var data = new Dictionary<string, object>
-            {
-                ["menu_path"] = menuPath,
-                ["executed"] = true,
-            };
-            CompleteSuccess(data);
+            CompleteSuccess(CommandResult.Ok($"menu executed: {menuPath}"));
         }
     }
 }

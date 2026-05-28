@@ -12,12 +12,8 @@ namespace UnityCliConnector.Commands
 
         public void Run(EchoParams p)
         {
-            var data = new System.Collections.Generic.Dictionary<string, object>
-            {
-                ["channel"] = "runtime",
-                ["message"] = p.Message ?? "ok",
-            };
-            CompleteSuccess(data);
+            var text = p?.Message ?? "ok";
+            CompleteSuccess(CommandResult.Ok("echo ok", text));
         }
     }
 }

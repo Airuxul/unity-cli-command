@@ -12,12 +12,7 @@ namespace UnityCliConnector.Commands
 
         public void Run()
         {
-            var data = new System.Collections.Generic.Dictionary<string, object>
-            {
-                ["pong"] = true,
-                ["host"] = "editor",
-            };
-            CompleteSuccess(data);
+            CompleteSuccess(CommandResult.Ok("pong"));
         }
     }
 }

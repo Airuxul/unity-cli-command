@@ -15,7 +15,7 @@ namespace UnityCliConnector.Commands
             try
             {
                 var data = Editor.Services.ProfilerHierarchyService.Execute(p);
-                CompleteSuccess(data);
+                CompleteSuccess(CommandResult.Ok("profiler completed", data));
             }
             catch (System.Exception ex)
             {

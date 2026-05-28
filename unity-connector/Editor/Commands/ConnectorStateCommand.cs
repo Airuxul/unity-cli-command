@@ -13,7 +13,7 @@ namespace UnityCliConnector.Commands
         public void Run()
         {
             var data = EditorStateProvider.ToManifestObject();
-            CompleteSuccess(data);
+            CompleteSuccess(CommandResult.Ok("state snapshot", data));
         }
     }
 }

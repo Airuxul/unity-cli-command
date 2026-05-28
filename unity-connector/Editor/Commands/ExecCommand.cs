@@ -15,7 +15,7 @@ namespace UnityCliConnector.Commands
             try
             {
                 var data = Editor.Services.CsharpExecutor.Execute(p);
-                CompleteSuccess(data);
+                CompleteSuccess(CommandResult.Ok("exec completed", data));
             }
             catch (System.Exception ex)
             {

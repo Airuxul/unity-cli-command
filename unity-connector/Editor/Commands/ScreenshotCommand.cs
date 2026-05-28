@@ -51,7 +51,7 @@ namespace UnityCliConnector.Commands
             }
 
             if (result.ok)
-                CompleteSuccess(result.data);
+                CompleteSuccess(CommandResult.Ok("screenshot captured", result.data));
             else
                 CompleteFail(result.error);
         }

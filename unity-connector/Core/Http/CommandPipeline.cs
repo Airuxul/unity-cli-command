@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityCliConnector.Commands;
 
 namespace UnityCliConnector.Http
 {
@@ -27,17 +28,24 @@ namespace UnityCliConnector.Http
                 if (context != null && context.IsCompleted)
                 {
                     var ok = string.IsNullOrEmpty(context.CompletedError);
+                    var (data, code, message) = UnwrapResult(context.CompletedResult);
+                    var body = new Dictionary<string, object>
+                    {
+                        ["ok"] = ok,
+                        ["data"] = data,
+                        ["error"] = context.CompletedError,
+                        ["request_id"] = request.RequestId,
+                        ["command_id"] = commandId,
+                    };
+                    if (!string.IsNullOrWhiteSpace(code))
+                        body["code"] = code;
+                    if (!string.IsNullOrWhiteSpace(message))
+                        body["message"] = message;
+
                     return new PostResult
                     {
                         StatusCode = ok ? 200 : 400,
-                        Body = new Dictionary<string, object>
-                        {
-                            ["ok"] = ok,
-                            ["data"] = context.CompletedResult,
-                            ["error"] = context.CompletedError,
-                            ["request_id"] = request.RequestId,
-                            ["command_id"] = commandId,
-                        },
+                        Body = body,
                     };
                 }
 
@@ -70,6 +78,16 @@ namespace UnityCliConnector.Http
                 body["command_id"] = commandId;
 
             return new PostResult { StatusCode = 400, Body = body };
+        }
+
+        private static (object data, string code, string message) UnwrapResult(object result)
+        {
+            if (result is CommandResult unified)
+            {
+                return (unified.Payload, unified.Code, unified.Message);
+            }
+
+            return (result, null, null);
         }
     }
 }

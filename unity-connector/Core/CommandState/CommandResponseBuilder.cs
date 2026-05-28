@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityCliConnector.Commands;
 
 namespace UnityCliConnector
 {
@@ -17,7 +18,18 @@ namespace UnityCliConnector
                 ["request_id"] = command.RequestId,
             };
             var result = command.Result ?? ConnectorJson.Deserialize(command.ResultJson);
-            if (result != null) dict["result"] = result;
+            if (result is CommandResult unified)
+            {
+                dict["result"] = unified.Payload;
+                if (!string.IsNullOrWhiteSpace(unified.Code))
+                    dict["code"] = unified.Code;
+                if (!string.IsNullOrWhiteSpace(unified.Message))
+                    dict["message"] = unified.Message;
+            }
+            else if (result != null)
+            {
+                dict["result"] = result;
+            }
             return dict;
         }
     }

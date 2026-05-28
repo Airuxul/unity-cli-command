@@ -15,7 +15,7 @@ namespace UnityCliConnector.Commands
             try
             {
                 var data = Editor.Services.ReserializeService.Reserialize(p);
-                CompleteSuccess(data);
+                CompleteSuccess(CommandResult.Ok("reserialize completed", data));
             }
             catch (System.Exception ex)
             {

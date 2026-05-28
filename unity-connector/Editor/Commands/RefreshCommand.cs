@@ -19,7 +19,7 @@ namespace UnityCliConnector.Commands
             {
                 var data = Apply(p);
                 if (!p.Compile)
-                    CompleteSuccess(data);
+                    CompleteSuccess(CommandResult.Ok("refresh completed", data));
             }
             catch (System.Exception ex)
             {

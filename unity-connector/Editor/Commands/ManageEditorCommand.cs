@@ -15,7 +15,7 @@ namespace UnityCliConnector.Commands
             try
             {
                 var data = Editor.Services.EditorManageService.Execute(p);
-                CompleteSuccess(data);
+                CompleteSuccess(CommandResult.Ok("manage completed", data));
             }
             catch (System.Exception ex)
             {
