@@ -1,9 +1,14 @@
-﻿# Agent guide — unity-cli monorepo
+﻿
+# Agent guide — unity-cli monorepo
+**Start here for AI agents:** [unity-cmd-skill/SKILL.md](unity-cmd-skill/SKILL.md) → [guide.zh-CN.md](unity-cmd-skill/references/guide.zh-CN.md) (install: copy to `.cursor/skills/unity-cmd/` — see [README](../README.md#ai--agent-usage)). This file is a short reference only.
+
+**Skill:** [unity-cmd-skill/SKILL.md](unity-cmd-skill/SKILL.md) → [guide.zh-CN.md](unity-cmd-skill/references/guide.zh-CN.md). **Catalog:** `list` only; stale if `catalog_expired` or `now >= expires_at`. No skill markdown cache.
 
 ## Doc map
 
 | Document | Use when |
 |----------|----------|
+| [unity-cmd-skill/SKILL.md](unity-cmd-skill/SKILL.md) | **Primary** — Cursor Skill source + 3-step cache workflow |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, request flow, assemblies, extension rules |
 | [../unity-cmd/docs/IMPLEMENTATION.md](../unity-cmd/docs/IMPLEMENTATION.md) | CLI modules, profiles, catalog cache, errors, polling |
 | [../unity-connector/docs/IMPLEMENTATION.md](../unity-connector/docs/IMPLEMENTATION.md) | HTTP API, deferred commands, parameters, play-mode rules |

@@ -1,7 +1,14 @@
 import { sendCommand, ping, fetchCatalog } from './client/command.js';
 import { resolveTarget } from './client/connection.js';
 import { resolveTimeoutMs } from './timeout.js';
-import { loadCatalog, resolveRemoteCommand, checkScopeCompatibility } from './catalog.js';
+import {
+  loadCatalog,
+  resolveRemoteCommand,
+  checkScopeCompatibility,
+  cachePathForTarget,
+  CATALOG_TTL_MS,
+  isCatalogExpired,
+} from './catalog.js';
 import { coerceParameters } from './params.js';
 import { cliError, enrichFailure, enrichThrown } from './errors.js';
 import { runHelp } from './help.js';
@@ -91,6 +98,11 @@ export async function runCommand(command, flags, timeoutMs, subArgs = []) {
         ok: true,
         profile: profileName,
         target: { host: target.host, port: target.port, connector_host: target.connector_host },
+        cache_path: cachePathForTarget(target),
+        updated_at: catalog.updated_at,
+        expires_at: catalog.expires_at,
+        catalog_ttl_ms: CATALOG_TTL_MS,
+        catalog_expired: isCatalogExpired(catalog),
         catalog_version: catalog.catalog_version,
         connector_build: catalog.connector_build,
         commands: catalog.commands,
@@ -105,7 +117,7 @@ export async function runCommand(command, flags, timeoutMs, subArgs = []) {
 
   const forceCatalogRefresh = flags['refresh-catalog'] === true;
 
-  const parameters = coerceParameters({ ...flags });
+  let parameters = coerceParameters({ ...flags });
   delete parameters.profile;
   delete parameters['refresh-catalog'];
 

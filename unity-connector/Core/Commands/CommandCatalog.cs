@@ -7,16 +7,43 @@ namespace UnityCliConnector
 {
     public static class CommandCatalog
     {
+        private static readonly Dictionary<string, string> CachedVersions =
+            new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object CacheGate = new();
+
         public static string GetCatalogVersion(string hostKind) =>
             ComputeVersion(CollectEntries(hostKind).versionParts);
+
+        /// <summary>Last catalog hash built on the main thread (never triggers discovery).</summary>
+        public static string GetCachedCatalogVersion(string hostKind)
+        {
+            lock (CacheGate)
+            {
+                return CachedVersions.TryGetValue(hostKind, out var version) ? version : null;
+            }
+        }
+
+        public static void ClearCachedVersions()
+        {
+            lock (CacheGate)
+            {
+                CachedVersions.Clear();
+            }
+        }
 
         public static Dictionary<string, object> BuildResponse(string hostKind)
         {
             var collected = CollectEntries(hostKind);
+            var version = ComputeVersion(collected.versionParts);
+            lock (CacheGate)
+            {
+                CachedVersions[hostKind] = version;
+            }
+
             return new Dictionary<string, object>
             {
                 ["ok"] = true,
-                ["catalog_version"] = ComputeVersion(collected.versionParts),
+                ["catalog_version"] = version,
                 ["commands"] = collected.commands,
                 ["alias_to_command"] = collected.aliasToCommand,
             };

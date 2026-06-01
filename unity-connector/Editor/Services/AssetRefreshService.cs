@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityCliConnector.Params;
 using UnityEditor;
-using UnityEditor.Compilation;
 using UnityEngine.SceneManagement;
 
 namespace UnityCliConnector.Editor.Services
@@ -24,12 +23,7 @@ namespace UnityCliConnector.Editor.Services
 
             AssetDatabase.Refresh(options);
 
-            var compileRequested = false;
-            if (p.Compile)
-            {
-                CompilationPipeline.RequestScriptCompilation();
-                compileRequested = true;
-            }
+            var compileRequested = p.Compile;
 
             var dirtyScenes = GetDirtyOpenScenes();
             string warning = null;

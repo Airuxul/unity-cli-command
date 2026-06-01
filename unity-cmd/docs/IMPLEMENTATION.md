@@ -15,7 +15,7 @@ Thin HTTP client and argv front-end. No Unity business logic; all commands come 
 | Path | Responsibility |
 |------|----------------|
 | `src/timeout.js` | Default 20s; `UNITY_CMD_TIMEOUT_MS` |
-| `src/client/connection.js` | Profiles, retry, `resolveTarget`, `waitForInstance` |
+| `src/client/connection.js` | Profiles, `PING_MAX_ATTEMPTS` (3) / `PING_RETRY_INTERVAL_MS` (3000), `resolveTarget`, `waitForInstance` |
 | `src/client/http.js` | `fetch` + `AbortSignal` timeout |
 | `src/client/command-status.js` | Poll `GET /commands/{id}` until terminal status |
 | `src/client/command.js` | `ping` → `GET /health`; `fetchCatalog` → `POST /list`; `sendCommand` → `POST /command` |
@@ -71,8 +71,10 @@ Integration mapping (`PROFILE_BY_HOST_KIND`): `editor_play` → profile `editor-
 
 ## Catalog cache
 
-- Path: `~/.unity-cmd/cache/catalog-<host>:<port>.json`
-- Valid when: file exists, `ping` succeeds, `connector_build` matches live `/health`, **`catalog_version` matches** `/health`, and cached `host_kind` matches profile
+- Path: `~/.unity-cmd/cache/catalog-<host>:<port>.json` (host `:` → `_` in filename)
+- Fields on disk: `updated_at`, `expires_at` (`updated_at` + 1 day), `host_kind`, `catalog_version`, `connector_build`, `commands`, `alias_to_command`
+- Valid when: file exists, **not** `isCatalogExpired`, `ping` succeeds, `connector_build` / `catalog_version` match `/health`, `host_kind` matches profile
+- `list` JSON includes `cache_path`, `updated_at`, `expires_at`, `catalog_expired`, `catalog_ttl_ms` for agents
 - Aliases and `params` from Unity `POST /list` only
 - `readCachedCatalog(target)` — shared disk read for offline help fallback
 

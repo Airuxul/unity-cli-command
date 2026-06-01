@@ -38,6 +38,10 @@ export function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Health probe: up to 3 attempts, 3s apart (see ping). */
+export const PING_MAX_ATTEMPTS = 3;
+export const PING_RETRY_INTERVAL_MS = 3000;
+
 export function defaultPortForHostKind(hostKind = 'editor') {
   switch (normalizeHostKind(hostKind)) {
     case 'editor_play':
@@ -155,9 +159,14 @@ export async function withRetry(fn, { timeoutMs = 20_000, intervalMs = 400 } = {
 }
 
 async function probeHealth(host, port, timeoutMs) {
-  return withRetry(
-    (remaining) => ping({ host, port }, { timeoutMs: Math.min(timeoutMs, remaining) }),
-    { timeoutMs, intervalMs: 350 },
+  return ping(
+    { host, port },
+    {
+      timeoutMs,
+      retryOnDisconnect: true,
+      maxAttempts: PING_MAX_ATTEMPTS,
+      retryIntervalMs: PING_RETRY_INTERVAL_MS,
+    },
   );
 }
 

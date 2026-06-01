@@ -64,6 +64,9 @@ namespace UnityCliConnector
             return null;
         }
 
+        internal static string[] BuildBlockingReasonsPublic(EditorStateSnapshot state) =>
+            BuildBlockingReasons(state);
+
         private static string[] BuildBlockingReasons(EditorStateSnapshot state)
         {
             if (state.IsCompiling)

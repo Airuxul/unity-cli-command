@@ -22,10 +22,8 @@ yarn-error.log*
 # --- unity-cmd test / local output ---
 unity-cmd/tests/integration/out/
 
-# --- Local agent / manual run artifacts (repo root) ---
-profile-report.json
-profile-root.json
-profile-*.json
+# --- Agent 
+.cursor/
 
 # --- Temp scripts & uploads ---
 tmp-*.cs
@@ -55,3 +53,5 @@ TestResults/
 .env
 .env.*
 !.env.example
+
+temp/

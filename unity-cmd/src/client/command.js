@@ -2,6 +2,9 @@ import { requestJson } from './http.js';
 import { pollCommandStatus } from './command-status.js';
 import { resolveTimeoutMs } from '../timeout.js';
 import { enrichFailure } from '../errors.js';
+import { sleep, PING_MAX_ATTEMPTS, PING_RETRY_INTERVAL_MS } from './connection.js';
+
+export { PING_MAX_ATTEMPTS, PING_RETRY_INTERVAL_MS };
 
 export async function sendCommand(target, command, parameters = {}, options = {}) {
   options.command = command;
@@ -49,14 +52,30 @@ export async function sendCommand(target, command, parameters = {}, options = {}
   return result.ok ? result : enrichFailure(result, { status, command: options.command });
 }
 
-export async function ping(target, options = {}) {
+async function pingOnce(target, options = {}) {
   const timeoutMs = resolveTimeoutMs(options.timeoutMs);
   const baseUrl = `http://${target.host}:${target.port}`;
   const { status, data } = await requestJson(`${baseUrl}/health`, {
     timeoutMs,
-    retryOnDisconnect: options.retryOnDisconnect ?? false,
+    retryOnDisconnect: false,
   });
   return { ok: status === 200 && data?.ok, status, data };
+}
+
+/** @param {{ timeoutMs?: number, retryOnDisconnect?: boolean, maxAttempts?: number, retryIntervalMs?: number }} options */
+export async function ping(target, options = {}) {
+  const maxAttempts =
+    options.maxAttempts ??
+    (options.retryOnDisconnect === false ? 1 : PING_MAX_ATTEMPTS);
+  const intervalMs = options.retryIntervalMs ?? PING_RETRY_INTERVAL_MS;
+
+  let last;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    last = await pingOnce(target, options);
+    if (last.ok) return last;
+    if (attempt < maxAttempts) await sleep(intervalMs);
+  }
+  return last;
 }
 
 export async function fetchCatalog(target, options = {}) {

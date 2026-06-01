@@ -15,6 +15,8 @@ namespace UnityCliConnector.Http
         private HttpListener _listener;
         private Thread _thread;
         private volatile bool _running;
+        private readonly object _inflightGate = new();
+        private readonly List<HttpListenerContext> _inflight = new();
 
         public HttpServer(IRequestDispatcher dispatcher, Action<string> log = null, Action<string> logError = null)
         {
@@ -22,6 +24,8 @@ namespace UnityCliConnector.Http
             _log = log;
             _logError = logError;
         }
+
+        public bool IsRunning => _running;
 
         public void Start(string host, int port) =>
             Start(new[] { $"http://{host}:{port}/" });
@@ -48,6 +52,8 @@ namespace UnityCliConnector.Http
         public void Stop()
         {
             _running = false;
+            AbortInflight();
+
             var listener = _listener;
             var thread = _thread;
             _listener = null;
@@ -63,12 +69,39 @@ namespace UnityCliConnector.Http
                 // ignored
             }
 
-            if (thread != null && thread.IsAlive)
+            if (thread == null || !thread.IsAlive)
+                return;
+
+            var deadline = Environment.TickCount + 3000;
+            while (thread.IsAlive && Environment.TickCount < deadline)
             {
                 try
                 {
-                    // Listener.Stop() unblocks GetContext(); a short join avoids Play/Stop hitches.
-                    thread.Join(100);
+                    thread.Join(200);
+                }
+                catch
+                {
+                    break;
+                }
+            }
+        }
+
+        public void Dispose() => Stop();
+
+        private void AbortInflight()
+        {
+            HttpListenerContext[] copy;
+            lock (_inflightGate)
+            {
+                copy = _inflight.ToArray();
+                _inflight.Clear();
+            }
+
+            foreach (var ctx in copy)
+            {
+                try
+                {
+                    ctx.Response.Abort();
                 }
                 catch
                 {
@@ -77,7 +110,17 @@ namespace UnityCliConnector.Http
             }
         }
 
-        public void Dispose() => Stop();
+        private void Track(HttpListenerContext ctx)
+        {
+            lock (_inflightGate)
+                _inflight.Add(ctx);
+        }
+
+        private void Untrack(HttpListenerContext ctx)
+        {
+            lock (_inflightGate)
+                _inflight.Remove(ctx);
+        }
 
         private void ListenLoop()
         {
@@ -86,6 +129,20 @@ namespace UnityCliConnector.Http
                 try
                 {
                     var ctx = _listener.GetContext();
+                    if (!_running)
+                    {
+                        try
+                        {
+                            ctx.Response.Abort();
+                        }
+                        catch
+                        {
+                            // ignored
+                        }
+
+                        break;
+                    }
+
                     ThreadPool.QueueUserWorkItem(_ => Handle(ctx));
                 }
                 catch (Exception ex) when (IsBenignShutdownError(ex))
@@ -102,6 +159,7 @@ namespace UnityCliConnector.Http
 
         private void Handle(HttpListenerContext ctx)
         {
+            Track(ctx);
             try
             {
                 var path = ctx.Request.Url?.AbsolutePath ?? "/";
@@ -129,6 +187,10 @@ namespace UnityCliConnector.Http
             catch (Exception ex)
             {
                 WriteJson(ctx, 500, new Dictionary<string, object> { ["ok"] = false, ["error"] = ex.Message });
+            }
+            finally
+            {
+                Untrack(ctx);
             }
         }
 

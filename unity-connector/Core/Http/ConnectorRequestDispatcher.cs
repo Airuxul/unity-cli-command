@@ -10,15 +10,18 @@ namespace UnityCliConnector.Http
         private readonly ICommandHost _host;
         private readonly ICommandScheduler _scheduler;
         private readonly ICommandQuery _commands;
+        private readonly IHealthMetadataProvider _health;
 
         public ConnectorRequestDispatcher(
             ICommandHost host,
             ICommandScheduler scheduler,
-            ICommandQuery commands = null)
+            ICommandQuery commands = null,
+            IHealthMetadataProvider health = null)
         {
             _host = host;
             _scheduler = scheduler;
             _commands = commands;
+            _health = health;
         }
 
         public bool TryDispatch(
@@ -41,19 +44,27 @@ namespace UnityCliConnector.Http
 
             if (path == "/health" && method == "GET")
             {
-                writeJson(200, new Dictionary<string, object>
+                var payload = new Dictionary<string, object>
                 {
                     ["ok"] = true,
                     ["host"] = _host.HostName,
                     ["connector_build"] = ConnectorBuild.Id,
-                    ["catalog_version"] = CommandCatalog.GetCatalogVersion(_host.HostName),
+                    ["catalog_version"] = CommandCatalog.GetCachedCatalogVersion(_host.HostName),
                     ["bind_mode"] = ConnectorNetwork.ResolveBindMode().ToString().ToLowerInvariant(),
-                });
+                };
+                _health?.AppendHealth(payload);
+                writeJson(200, payload);
                 return true;
             }
 
             if (path == "/list" && method == "POST")
             {
+                if (_scheduler is IMainThreadHttpScheduler mainThread)
+                {
+                    mainThread.ScheduleCatalog(writeJson);
+                    return true;
+                }
+
                 writeJson(200, CommandCatalog.BuildResponse(_host.HostName));
                 return true;
             }
@@ -71,6 +82,12 @@ namespace UnityCliConnector.Http
                 }
 
                 var id = path.Substring("/commands/".Length).Trim('/');
+                if (_scheduler is IMainThreadHttpScheduler mainThread)
+                {
+                    mainThread.ScheduleCommandStatus(id, writeJson);
+                    return true;
+                }
+
                 var commandPayload = _commands.GetCommandResponse(id);
                 if (commandPayload == null)
                 {

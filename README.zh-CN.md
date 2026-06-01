@@ -42,6 +42,123 @@ CLI 参数与 npm 脚本：[unity-cmd/README.zh-CN.md](unity-cmd/README.zh-CN.md
 
 端口固定：**Editor `6547`**、**Editor Play `6794`**、**Player `6795`**，三端可同时运行互不冲突。
 
+## AI / Agent 使用
+
+本仓库在 **`docs/unity-cmd-skill/`** 提供可提交的 [Cursor Agent Skill](https://cursor.com/docs/skills) 源文件。`.cursor/` 通常不纳入 Git，需在本机安装一次。
+
+### 安装 Skill（必做）
+
+将 **`docs/unity-cmd-skill`** 整个文件夹复制为：
+
+```text
+<仓库根>/.cursor/skills/unity-cmd/
+```
+
+**目标文件夹名必须为 `unity-cmd`**（与 `SKILL.md` 中 `name: unity-cmd` 一致）。
+
+```powershell
+# Windows PowerShell（在仓库根目录执行）
+New-Item -ItemType Directory -Force -Path .cursor\skills | Out-Null
+Copy-Item -Recurse -Force docs\unity-cmd-skill .cursor\skills\unity-cmd
+```
+
+```bash
+# macOS / Linux
+mkdir -p .cursor/skills
+cp -R docs/unity-cmd-skill .cursor/skills/unity-cmd
+```
+
+说明详见 [docs/unity-cmd-skill/README.md](docs/unity-cmd-skill/README.md)。
+
+### 仓库内 Skill 目录结构
+
+```text
+docs/unity-cmd-skill/           # Git 中的源（复制到 .cursor/skills/unity-cmd/ 后由 Cursor 加载）
+  SKILL.md
+  references/guide.zh-CN.md
+```
+
+### 接入方式
+
+| 方式 | 说明 |
+|------|------|
+| 自动加载 | 安装后，讨论 Unity 自动化时 Cursor 加载 `.cursor/skills/unity-cmd/` |
+| `/unity-cmd` | 聊天输入斜杠命令 |
+| `@` 引用 | `@.cursor/skills/unity-cmd/SKILL.md`（需先安装）；或直接 `@docs/unity-cmd-skill/SKILL.md` 阅读规范 |
+| 完整指南 | [docs/unity-cmd-skill/references/guide.zh-CN.md](docs/unity-cmd-skill/references/guide.zh-CN.md) |
+| 英文速查 | [docs/AGENTS.md](docs/AGENTS.md) |
+
+### 默认逻辑（用户说「在 Unity 编辑器 / 运行时做 xxx」）
+
+```text
+1. 判定域 → 选 profile（editor / editor-play / package-play）
+2. unity-cmd --profile <名> list → 在 catalog 的 commands 中匹配用户意图
+3. 有 catalog 但未命中 → list --refresh-catalog → 再匹配
+4. 仍无匹配 → 说明无此能力、列 2～5 条相关命令名 → 中断；不臆造命令
+5. ping 成功 → 执行已匹配命令
+```
+
+命令目录由 CLI 写入 `~/.unity-cmd/cache/catalog-<host>_<port>.json`，**不要**在 Skill 内维护 markdown 副本。刷新目录：`unity-cmd --profile <名> list --refresh-catalog`。
+
+### 范例 1：改脚本后检查编译
+
+**用户：**「我刚改了 C#，帮你看 Unity 有没有编译错误。」
+
+**Agent：**
+
+1. `unity-cmd --profile editor list`，在 `commands` 中确认有 `compile`、`console`。
+2. 无匹配则按 Skill 中断；勿臆造命令。
+3. 执行：
+
+```bash
+unity-cmd --profile editor ping
+unity-cmd --profile editor compile --timeout 60000
+unity-cmd --profile editor console --type error,warning --lines 30
+```
+
+4. 根据 JSON 的 `ok`、`error_code`、`hint` 汇报；`compile` 失败则不要继续 Play。
+
+### 范例 2：进 Play 并截图
+
+**用户：**「进入播放模式并截一张 Game 视图。」
+
+**Agent：** 域为 **editor**（`play` / `screenshot` / `stop` 均用 profile `editor`）：
+
+```bash
+unity-cmd --profile editor ping
+unity-cmd --profile editor play --timeout 90000
+unity-cmd --profile editor screenshot --view game --output_path Screenshots/agent-play.png
+unity-cmd --profile editor stop
+```
+
+若用户还要「播放中跑 runtime echo」：`unity-cmd --profile editor-play list`，再用 `editor-play` profile。
+
+### 范例 3：刷新命令目录（CLI catalog）
+
+**用户：**「更新一下 Unity 编辑器命令缓存。」
+
+**Agent：**
+
+```bash
+unity-cmd --profile editor list --refresh-catalog
+```
+
+由 CLI 更新 `~/.unity-cmd/cache/catalog-*.json`；**不要**在 Skill 目录写 markdown 副本。
+
+### 范例 4：在 Cursor 里一次性启用 Skill
+
+在 Agent 对话开头发送：
+
+```text
+请按 @.cursor/skills/unity-cmd/SKILL.md 操作 Unity（若未安装 Skill，请先复制 docs/unity-cmd-skill）：先 unity-cmd --profile editor list 确认有 compile/console，
+再帮我在编辑器里执行 compile 并读取最近 20 条 error/warning 控制台日志。
+```
+
+### Agent 注意
+
+- 命令参数以 `list` / `~/.unity-cmd/cache/catalog-*.json` 为准，**禁止**臆造 flag；**禁止**在 Skill 内维护 markdown 命令副本。
+- `play` / `stop` 仅 profile **`editor`**；播放中 runtime `echo` 用 **`editor-play`**。
+
 ## 各实例命令
 
 使用 **`--profile <名称>`** 或 **`UNITY_CMD_PROFILE`**。先创建 profile：
@@ -178,7 +295,8 @@ npm run test:integration    # 需已打开 Editor；无实例则跳过
 
 | 文档 | |
 |------|---|
+| [docs/unity-cmd-skill/](docs/unity-cmd-skill/SKILL.md) | **Cursor Skill 源**（复制到 `.cursor/skills/unity-cmd/`） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构与请求流 |
-| [docs/AGENTS.md](docs/AGENTS.md) | 自动化说明 |
+| [docs/AGENTS.md](docs/AGENTS.md) | 自动化速查 |
 | [unity-cmd/docs/IMPLEMENTATION.md](unity-cmd/docs/IMPLEMENTATION.md) | CLI 实现 |
 | [unity-connector/docs/IMPLEMENTATION.md](unity-connector/docs/IMPLEMENTATION.md) | HTTP API 与参数 |

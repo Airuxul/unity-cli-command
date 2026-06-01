@@ -5,6 +5,9 @@ import { fetchCatalog, ping } from './client/command.js';
 
 const CACHE_DIR = path.join(os.homedir(), '.unity-cmd', 'cache');
 
+/** Agent skill TTL: catalog older than this is treated as expired. */
+export const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
+
 export function cachePathForTarget(target) {
   const key = `${target.host}:${target.port}`.replace(/[\\/:*?"<>|]/g, '_');
   return path.join(CACHE_DIR, `catalog-${key}.json`);
@@ -35,10 +38,36 @@ export function indexCatalog(raw) {
     host_kind: raw?.host_kind ?? null,
     catalog_version: raw?.catalog_version ?? null,
     connector_build: raw?.connector_build ?? null,
+    updated_at: raw?.updated_at ?? null,
+    expires_at: raw?.expires_at ?? null,
     commands,
     commands_by_name: commandsByName,
     alias_to_command: raw?.alias_to_command ?? {},
   };
+}
+
+/** @param {Date} [now] */
+export function catalogTimestamps(now = new Date()) {
+  const updated_at = now.toISOString();
+  const expires_at = new Date(now.getTime() + CATALOG_TTL_MS).toISOString();
+  return { updated_at, expires_at };
+}
+
+/**
+ * @param {object | null | undefined} catalog
+ * @param {number} [nowMs]
+ */
+export function isCatalogExpired(catalog, nowMs = Date.now()) {
+  if (!catalog) return true;
+  if (catalog.expires_at) {
+    const exp = Date.parse(catalog.expires_at);
+    if (!Number.isNaN(exp)) return nowMs >= exp;
+  }
+  if (catalog.updated_at) {
+    const updated = Date.parse(catalog.updated_at);
+    if (!Number.isNaN(updated)) return nowMs >= updated + CATALOG_TTL_MS;
+  }
+  return true;
 }
 
 /**
@@ -48,6 +77,7 @@ export function indexCatalog(raw) {
  */
 export async function isCacheValid(cached, target, timeoutMs) {
   if (!cached?.commands?.length || !cached?.catalog_version) return false;
+  if (isCatalogExpired(cached)) return false;
 
   const health = await ping(target, {
     timeoutMs: Math.min(timeoutMs, 5000),
@@ -116,17 +146,18 @@ export async function loadCatalog(target, options = {}) {
     });
   }
 
-  const catalog = indexCatalog({
+  const payload = {
+    ...catalogTimestamps(),
     host_kind: target?.connector_host ?? null,
     catalog_version: res.catalog_version,
     connector_build: health.data?.connector_build ?? null,
     commands: res.commands,
     alias_to_command: res.alias_to_command,
-  });
+  };
 
   fs.mkdirSync(CACHE_DIR, { recursive: true });
-  fs.writeFileSync(cachePath, JSON.stringify(catalog, null, 2));
-  return catalog;
+  fs.writeFileSync(cachePath, JSON.stringify(payload, null, 2));
+  return indexCatalog(payload);
 }
 
 /**

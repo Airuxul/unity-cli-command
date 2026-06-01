@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveRemoteCommand } from '../../src/catalog.js';
+import {
+  resolveRemoteCommand,
+  catalogTimestamps,
+  isCatalogExpired,
+  CATALOG_TTL_MS,
+} from '../../src/catalog.js';
 
 const MOCK_CATALOG = {
   catalog_version: 'test',
@@ -78,6 +83,27 @@ test('refresh with compile flag uses compile timeout', () => {
   assert.equal(r.command, 'refresh');
   assert.equal(r.allowConnectionRetry, true);
   assert.equal(r.minTimeoutMs, 30_000);
+});
+
+test('catalogTimestamps sets updated_at and expires_at one TTL apart', () => {
+  const now = new Date('2026-05-29T12:00:00.000Z');
+  const { updated_at, expires_at } = catalogTimestamps(now);
+  assert.equal(updated_at, '2026-05-29T12:00:00.000Z');
+  assert.equal(expires_at, new Date(now.getTime() + CATALOG_TTL_MS).toISOString());
+});
+
+test('isCatalogExpired uses expires_at when present', () => {
+  const catalog = {
+    updated_at: '2026-01-01T00:00:00.000Z',
+    expires_at: '2026-01-02T00:00:00.000Z',
+  };
+  assert.equal(isCatalogExpired(catalog, Date.parse('2026-01-01T12:00:00.000Z')), false);
+  assert.equal(isCatalogExpired(catalog, Date.parse('2026-01-02T00:00:00.000Z')), true);
+});
+
+test('isCatalogExpired treats missing timestamps as expired', () => {
+  assert.equal(isCatalogExpired({ commands: [] }), true);
+  assert.equal(isCatalogExpired(null), true);
 });
 
 test('passes through command name when no alias map', () => {

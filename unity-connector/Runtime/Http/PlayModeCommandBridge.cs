@@ -6,20 +6,19 @@ using UnityEngine;
 
 namespace UnityCliConnector
 {
-    /// <summary>Runs POST /command on the play-mode main thread.</summary>
-    public sealed class PlayModeCommandBridge : ICommandScheduler
+    /// <summary>Runs HTTP command work on the play-mode main thread.</summary>
+    public sealed class PlayModeCommandBridge : IMainThreadHttpScheduler
     {
-        private sealed class Pending
-        {
-            public string Body;
-            public Action<int, Dictionary<string, object>> WriteJson;
-        }
-
         private readonly ICommandHost _host;
-        private readonly ConcurrentQueue<Pending> _queue = new();
+        private readonly RuntimeCommandStore _commands;
+        private readonly ConcurrentQueue<MainThreadHttpWork.Item> _queue = new();
         private GameObject _driver;
 
-        public PlayModeCommandBridge(ICommandHost host) => _host = host;
+        public PlayModeCommandBridge(ICommandHost host)
+        {
+            _host = host;
+            _commands = new RuntimeCommandStore(host.HostName);
+        }
 
         public void EnsureStarted()
         {
@@ -39,29 +38,45 @@ namespace UnityCliConnector
         public void Schedule(string body, Action<int, Dictionary<string, object>> writeJson)
         {
             EnsureStarted();
-            _queue.Enqueue(new Pending { Body = body, WriteJson = writeJson });
+            _queue.Enqueue(new MainThreadHttpWork.Item
+            {
+                Kind = MainThreadHttpWork.Kind.Command,
+                Body = body,
+                WriteJson = writeJson,
+            });
+        }
+
+        public void ScheduleCatalog(Action<int, Dictionary<string, object>> writeJson)
+        {
+            EnsureStarted();
+            _queue.Enqueue(new MainThreadHttpWork.Item
+            {
+                Kind = MainThreadHttpWork.Kind.Catalog,
+                WriteJson = writeJson,
+            });
+        }
+
+        public void ScheduleCommandStatus(string commandId, Action<int, Dictionary<string, object>> writeJson)
+        {
+            EnsureStarted();
+            _queue.Enqueue(new MainThreadHttpWork.Item
+            {
+                Kind = MainThreadHttpWork.Kind.CommandStatus,
+                CommandId = commandId,
+                WriteJson = writeJson,
+            });
         }
 
         private void Drain()
         {
             RuntimeCommandStateManager.Tick(_host.HostName);
 
-            while (_queue.TryDequeue(out var pending))
+            while (_queue.TryDequeue(out var item))
             {
-                try
-                {
-                    var request = CommandHttpHelper.ParseCommandRequest(pending.Body, _host.HostName);
-                    var post = _host.HandleCommand(request);
-                    pending.WriteJson(post.StatusCode, post.Body);
-                }
-                catch (Exception ex)
-                {
-                    pending.WriteJson(500, new Dictionary<string, object>
-                    {
-                        ["ok"] = false,
-                        ["error"] = ex.Message,
-                    });
-                }
+                MainThreadHttpWork.Process(
+                    item,
+                    _host,
+                    _commands.GetCommandResponse);
             }
         }
 

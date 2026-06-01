@@ -225,6 +225,7 @@ namespace UnityCliConnector
         {
             private readonly CommandContext _context;
             public RuntimeAdapter(CommandContext context) => _context = context;
+            public string CommandId => _context?.CommandId;
             public void CompleteSuccess(object result) => _context?.CompleteSuccess(result);
             public void CompleteFail(string error) => _context?.CompleteFail(error);
             public void MarkRunning() => _context?.MarkRunning();

@@ -42,6 +42,119 @@ After editing connector C#: `unity-cmd --profile editor compile` (alias `recompi
 
 Fixed ports: **Editor `6547`**, **Editor Play `6794`**, **Player `6795`** — all three can run together on one machine.
 
+## AI / Agent usage
+
+The [Cursor Agent Skill](https://cursor.com/docs/skills) source lives in **`docs/unity-cmd-skill/`** (committed to Git). `.cursor/` is usually not committed — **copy the folder into your local skills directory once**.
+
+### Install the skill (required)
+
+Copy **`docs/unity-cmd-skill`** to:
+
+```text
+<repo-root>/.cursor/skills/unity-cmd/
+```
+
+The folder name **must be `unity-cmd`** (matches `name: unity-cmd` in `SKILL.md`).
+
+```powershell
+# Windows PowerShell (repo root)
+New-Item -ItemType Directory -Force -Path .cursor\skills | Out-Null
+Copy-Item -Recurse -Force docs\unity-cmd-skill .cursor\skills\unity-cmd
+```
+
+```bash
+# macOS / Linux
+mkdir -p .cursor/skills
+cp -R docs/unity-cmd-skill .cursor/skills/unity-cmd
+```
+
+See [docs/unity-cmd-skill/README.md](docs/unity-cmd-skill/README.md).
+
+### Layout in the repo
+
+```text
+docs/unity-cmd-skill/           # source in Git → copy to .cursor/skills/unity-cmd/
+  SKILL.md
+  references/guide.zh-CN.md
+```
+
+### How to enable
+
+| Method | Description |
+|--------|-------------|
+| Auto | After install, Cursor loads `.cursor/skills/unity-cmd/` for Unity tasks |
+| `/unity-cmd` | Slash command in chat |
+| `@` mention | `@.cursor/skills/unity-cmd/SKILL.md` (after install), or `@docs/unity-cmd-skill/SKILL.md` to read the spec |
+| Full guide | [docs/unity-cmd-skill/references/guide.zh-CN.md](docs/unity-cmd-skill/references/guide.zh-CN.md) |
+| Quick ref | [docs/AGENTS.md](docs/AGENTS.md) |
+
+### Default logic (user asks to do X in Editor or runtime)
+
+```text
+1. Pick domain → profile (editor / editor-play / package-play)
+2. unity-cmd --profile <name> list → match user intent on commands[]
+3. Catalog present but no match → list --refresh-catalog → match again
+4. Still no match → explain, suggest 2–5 command names → abort; do not invent commands
+5. ping OK → run matched command
+```
+
+Catalog lives in `~/.unity-cmd/cache/catalog-<host>_<port>.json` (CLI-managed). **Do not** copy it into skill markdown. Refresh: `list --refresh-catalog`.
+
+### Example 1: check compile after script changes
+
+**User:** *"I changed C# — check Unity compile errors."*
+
+**Agent:**
+
+1. `unity-cmd --profile editor list`; confirm `compile` and `console` in `commands`.
+2. No match → abort per skill; do not invent commands.
+3. Run:
+
+```bash
+unity-cmd --profile editor ping
+unity-cmd --profile editor compile --timeout 60000
+unity-cmd --profile editor console --type error,warning --lines 30
+```
+
+4. Report from JSON `ok`, `error_code`, `hint`; do not enter Play if `compile` failed.
+
+### Example 2: Play Mode screenshot
+
+**User:** *"Enter Play and capture the Game view."*
+
+**Agent:** **editor** domain (`play` / `screenshot` / `stop` use profile `editor`):
+
+```bash
+unity-cmd --profile editor ping
+unity-cmd --profile editor play --timeout 90000
+unity-cmd --profile editor screenshot --view game --output_path Screenshots/agent-play.png
+unity-cmd --profile editor stop
+```
+
+For runtime `echo` while playing: `unity-cmd --profile editor-play list`, then use profile `editor-play`.
+
+### Example 3: refresh command catalog
+
+**User:** *"Refresh the Unity Editor command cache."*
+
+```bash
+unity-cmd --profile editor list --refresh-catalog
+```
+
+Updates `~/.unity-cmd/cache/catalog-*.json` via CLI; do **not** write skill markdown copies.
+
+### Example 4: one-shot Cursor prompt
+
+```text
+Follow @.cursor/skills/unity-cmd/SKILL.md (install `docs/unity-cmd-skill` first if needed): run unity-cmd --profile editor list to confirm compile/console exist,
+then compile in the Unity Editor and show the last 20 error/warning console lines.
+```
+
+### Rules for agents
+
+- Flags come from `list` / catalog JSON — never invent CLI flags; do not maintain skill markdown command caches.
+- `play` / `stop` → profile **`editor`** only; runtime `echo` while playing → **`editor-play`**.
+
 ## Commands per instance
 
 Use **`--profile <name>`** (or `UNITY_CMD_PROFILE`). Create profiles once:
@@ -166,7 +279,8 @@ npm run test:integration    # needs Editor open; skips if no instance
 
 | Doc | |
 |-----|---|
+| [docs/unity-cmd-skill/](docs/unity-cmd-skill/SKILL.md) | **Cursor Skill source** (copy to `.cursor/skills/unity-cmd/`) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design and request flow |
-| [docs/AGENTS.md](docs/AGENTS.md) | Automation notes |
+| [docs/AGENTS.md](docs/AGENTS.md) | Automation quick reference |
 | [unity-cmd/docs/IMPLEMENTATION.md](unity-cmd/docs/IMPLEMENTATION.md) | CLI internals |
 | [unity-connector/docs/IMPLEMENTATION.md](unity-connector/docs/IMPLEMENTATION.md) | HTTP API and parameters |

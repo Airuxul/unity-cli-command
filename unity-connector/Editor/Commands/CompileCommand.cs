@@ -1,5 +1,5 @@
 using UnityCliConnector.Commands;
-using UnityEditor.Compilation;
+using UnityCliConnector.Editor.Services;
 using UnityCliConnector.Params;
 
 namespace UnityCliConnector.Commands
@@ -16,7 +16,10 @@ namespace UnityCliConnector.Commands
 
         public void Run(CompileParams p)
         {
-            CompilationPipeline.RequestScriptCompilation();
+            ScriptCompilationService.RequestWithCompletion(
+                CommandId,
+                CompleteSuccess,
+                CompleteFail);
         }
     }
 }
