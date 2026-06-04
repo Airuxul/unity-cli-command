@@ -140,7 +140,29 @@ test('gamedemo-scene-switch-play scenario loads and flattens', () => {
   const scenario = JSON.parse(fs.readFileSync(file, 'utf8'));
   assert.equal(scenario.name, 'gamedemo-scene-switch-play');
   const flat = flattenScenarioSteps(scenario.steps);
-  assert.equal(flat.length, 32);
+  assert.equal(flat.length, 22);
   assert.ok(flat.some((s) => s.name === '04_open_statup_scene'));
-  assert.ok(flat.some((s) => s.name.startsWith('21_repeat_scene_switch_then_play_1_')));
+  assert.equal(flat.some((s) => s.name.startsWith('21_repeat_')), false);
+});
+
+test('editor-lifecycle scenario has no repeat blocks and stays lean', () => {
+  const file = path.join(integrationDir, 'scenarios', 'editor-lifecycle.json');
+  const scenario = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(scenario.steps.filter((s) => (s.repeat ?? 0) > 0).length, 0);
+  const flat = flattenScenarioSteps(scenario.steps);
+  assert.equal(flat.length, 25);
+  assert.equal(
+    flat.filter((s) => s.command === 'compile' && !s.expectFailure).length,
+    0,
+  );
+});
+
+test('editor-reliability-stress repeat counts do not exceed 3', () => {
+  const file = path.join(integrationDir, 'scenarios', 'editor-reliability-stress.json');
+  const scenario = JSON.parse(fs.readFileSync(file, 'utf8'));
+  for (const step of scenario.steps) {
+    if (step.repeat != null) assert.ok(step.repeat <= 3, step.name);
+  }
+  const flat = flattenScenarioSteps(scenario.steps);
+  assert.equal(flat.filter((s) => s.command === 'compile').length, 3);
 });

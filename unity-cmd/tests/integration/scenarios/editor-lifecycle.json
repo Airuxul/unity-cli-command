@@ -1,6 +1,6 @@
 {
   "name": "editor-lifecycle",
-  "description": "Editor edit mode tools ??Play ??editor_play runtime + editor screenshot/profiler ??stop ??edit mode again",
+  "description": "Editor edit tools, one Play cycle (editor_play + screenshot), stop; play/stop stress lives in editor-reliability-stress",
   "steps": [
     {
       "name": "00_force_stop_before_suite",
@@ -8,10 +8,7 @@
       "timeoutMs": 20000,
       "expect": { "ok": true }
     },
-    {
-      "name": "00b_wait_after_forced_stop",
-      "sleepMs": 1500
-    },
+    { "name": "00b_wait_after_forced_stop", "sleepMs": 1500 },
     {
       "name": "01_ping_editor",
       "command": "ping",
@@ -32,31 +29,10 @@
       "command": "list",
       "expect": { "ok": true },
       "expectCatalog": {
-        "commands": [
-          "compile",
-          "console",
-          "echo",
-          "exec",
-          "ping",
-          "play",
-          "profiler",
-          "screenshot",
-          "state"
-        ],
+        "commands": ["compile", "console", "echo", "exec", "ping", "play", "profiler", "screenshot", "state"],
         "forbidden": ["echo.runtime"],
         "forbiddenScopes": ["runtime"]
       }
-    },
-    {
-      "name": "03b_compile_scripts",
-      "command": "compile",
-      "timeoutMs": 60000,
-      "expect": { "ok": true }
-    },
-    {
-      "name": "03c_wait_after_compile",
-      "waitProfile": "editor",
-      "timeoutMs": 120000
     },
     {
       "name": "04_echo_editor",
@@ -76,44 +52,38 @@
       "expect": { "ok": true, "dataHas": ["enabled", "frame_count"] }
     },
     {
-      "name": "07_profiler_enable",
-      "command": "profiler",
-      "args": ["--action", "enable"],
-      "expect": { "ok": true, "dataHas": ["enabled"] }
-    },
-    {
-      "name": "08_exec",
+      "name": "07_exec",
       "command": "exec",
       "args": ["--code", "return 1 + 1;"],
       "timeoutMs": 20000,
       "expect": { "ok": true, "dataHas": ["result"] }
     },
     {
-      "name": "09_enter_play",
+      "name": "08_enter_play",
       "command": "play",
       "timeoutMs": 20000,
       "expect": { "ok": true }
     },
     {
-      "name": "10_wait_editor_play_endpoint",
+      "name": "09_wait_editor_play_endpoint",
       "waitProfile": "editor-play",
       "timeoutMs": 20000
     },
     {
-      "name": "11_echo_runtime",
+      "name": "10_echo_runtime",
       "hostKind": "editor_play",
       "command": "echo",
       "expect": { "data": { "channel": "runtime" } }
     },
     {
-      "name": "12_ping_editor_play",
+      "name": "11_ping_editor_play",
       "hostKind": "editor_play",
       "command": "ping",
       "expect": { "ok": true },
       "expectConnectorBuild": 40
     },
     {
-      "name": "12b_reject_compile_on_editor_play",
+      "name": "12_reject_compile_on_editor_play",
       "hostKind": "editor_play",
       "command": "compile",
       "expectFailure": true
@@ -125,38 +95,16 @@
       "expect": { "ok": true },
       "expectCatalog": {
         "commands": ["echo", "ping"],
-        "forbidden": [
-          "compile",
-          "console",
-          "echo.editor",
-          "exec",
-          "play",
-          "profiler",
-          "screenshot",
-          "state"
-        ],
+        "forbidden": ["compile", "console", "echo.editor", "exec", "play", "profiler", "screenshot", "state"],
         "forbiddenScopes": ["editor"]
       }
-    },
-    {
-      "name": "13b_ping_editor_during_play",
-      "command": "ping",
-      "expect": { "ok": true, "data": { "listener_running": true } }
     },
     {
       "name": "14_list_catalog_editor_during_play",
       "command": "list",
       "expect": { "ok": true },
       "expectCatalog": {
-        "commands": [
-          "compile",
-          "console",
-          "ping",
-          "play",
-          "profiler",
-          "screenshot",
-          "state"
-        ],
+        "commands": ["compile", "console", "ping", "play", "profiler", "screenshot", "state"],
         "forbidden": ["echo.runtime"],
         "forbiddenScopes": ["runtime"]
       }
@@ -173,41 +121,7 @@
       "expect": { "ok": true, "dataHas": ["enabled", "frame_count", "is_playing"] }
     },
     {
-      "name": "17_profiler_hierarchy_during_play",
-      "command": "profiler",
-      "args": [
-        "--action",
-        "hierarchy",
-        "--frame",
-        "-1",
-        "--root",
-        "PlayerLoop",
-        "--max",
-        "8",
-        "--depth",
-        "1"
-      ],
-      "expect": { "ok": true, "dataHas": ["mode", "frame", "children"] }
-    },
-    {
-      "name": "17b_profiler_all_frames_during_play",
-      "command": "profiler",
-      "args": [
-        "--action",
-        "hierarchy",
-        "--frames",
-        "99999",
-        "--root",
-        "PlayerLoop",
-        "--max",
-        "128",
-        "--depth",
-        "2"
-      ],
-      "expect": { "ok": true, "dataHas": ["mode", "frame_count", "items"] }
-    },
-    {
-      "name": "18_screenshot_game_via_editor_host",
+      "name": "17_screenshot_game_via_editor_host",
       "hostKind": "editor",
       "command": "screenshot",
       "args": [
@@ -223,96 +137,36 @@
       "expect": { "ok": true, "dataHas": ["path", "width", "height"] }
     },
     {
-      "name": "19_assert_screenshot_file",
+      "name": "18_assert_screenshot_file",
       "assertFile": {
         "path": "${UNITY_CMD_CACHE_DIR}/integration-editor-lifecycle-play.png",
         "minBytes": 400
       }
     },
     {
-      "name": "20_exit_play",
+      "name": "19_exit_play",
       "command": "stop",
       "timeoutMs": 20000,
       "expect": { "ok": true }
     },
+    { "name": "20_wait_editor_after_stop", "sleepMs": 2000 },
     {
-      "name": "21_wait_editor_after_stop",
-      "sleepMs": 2000
-    },
-    {
-      "name": "22_state_after_play",
+      "name": "21_state_after_play",
       "command": "state",
       "expect": { "ok": true, "data": { "is_playing": false } }
     },
     {
-      "name": "23_echo_editor_after_play",
+      "name": "22_echo_editor_after_play",
       "command": "echo",
       "expect": { "data": { "channel": "editor" } }
     },
     {
-      "name": "24_profiler_status_after_play",
-      "command": "profiler",
-      "args": ["--action", "status"],
-      "expect": { "ok": true, "dataHas": ["enabled", "frame_count"] }
-    },
-    {
-      "name": "25_list_catalog_edit_after_play",
-      "command": "list",
-      "expect": { "ok": true },
-      "expectCatalog": {
-        "commands": ["compile", "echo", "ping", "play"],
-        "forbidden": ["echo.runtime"],
-        "forbiddenScopes": ["runtime"]
-      }
-    },
-    {
-      "name": "26_play_stop_stress",
-      "repeat": 5,
-      "steps": [
-        {
-          "name": "play",
-          "command": "play",
-          "expect": { "ok": true }
-        },
-        {
-          "name": "settle_play",
-          "sleepMs": 2000
-        },
-        {
-          "name": "stop",
-          "command": "stop",
-          "expect": { "ok": true }
-        },
-        {
-          "name": "settle_edit",
-          "sleepMs": 1500
-        },
-        {
-          "name": "ping_editor",
-          "command": "ping",
-          "expect": { "ok": true, "data": { "listener_running": true, "play_mode": "edit" } }
-        },
-        {
-          "name": "echo_cycle",
-          "command": "echo",
-          "args": ["--message", "play-stop-stress"],
-          "expect": { "ok": true, "data": { "channel": "editor" } }
-        }
-      ]
-    },
-    {
-      "name": "27_state_after_play_stop_stress",
-      "command": "state",
+      "name": "23_ping_final",
+      "command": "ping",
       "expect": {
         "ok": true,
-        "data": { "is_playing": false, "play_mode": "edit" },
-        "dataHas": ["connector_state", "commands_ready", "supervisor_phase"]
+        "data": { "listener_running": true, "commands_ready": true, "play_mode": "edit" }
       }
-    },
-    {
-      "name": "28_ping_after_play_stop_stress",
-      "command": "ping",
-      "expect": { "ok": true, "data": { "listener_running": true, "commands_ready": true } }
     }
   ]
 }

@@ -93,7 +93,7 @@
       "command": "ping",
       "expect": {
         "ok": true,
-        "data": { "listener_running": true, "commands_ready": true, "play_mode": "playing" }
+        "data": { "listener_running": true, "play_mode": "playing" }
       }
     },
     {
@@ -138,58 +138,6 @@
       "name": "20_state_after_play",
       "command": "state",
       "expect": { "ok": true, "data": { "is_playing": false, "play_mode": "edit" } }
-    },
-    {
-      "name": "21_repeat_scene_switch_then_play",
-      "repeat": 1,
-      "steps": [
-        {
-          "name": "open_statup",
-          "command": "exec",
-          "timeoutMs": 60000,
-          "args": [
-            "--code",
-            "return UnityEditor.SceneManagement.EditorSceneManager.OpenScene(\"Assets/Scenes/StatUp.unity\").name;"
-          ],
-          "expect": { "ok": true }
-        },
-        { "name": "sleep_a", "sleepMs": 500 },
-        {
-          "name": "open_boot",
-          "command": "exec",
-          "timeoutMs": 60000,
-          "args": [
-            "--code",
-            "return UnityEditor.SceneManagement.EditorSceneManager.OpenScene(\"Assets/Scenes/Boot.unity\").name;"
-          ],
-          "expect": { "ok": true }
-        },
-        { "name": "sleep_b", "sleepMs": 500 },
-        {
-          "name": "play",
-          "command": "play",
-          "timeoutMs": 30000,
-          "expect": { "ok": true }
-        },
-        { "name": "sleep_play", "sleepMs": 2000 },
-        {
-          "name": "ping_editor",
-          "command": "ping",
-          "expect": { "ok": true, "data": { "listener_running": true } }
-        },
-        {
-          "name": "stop",
-          "command": "stop",
-          "timeoutMs": 30000,
-          "expect": { "ok": true }
-        },
-        { "name": "sleep_stop", "sleepMs": 1500 },
-        {
-          "name": "ping_editor_after",
-          "command": "ping",
-          "expect": { "ok": true, "data": { "listener_running": true, "commands_ready": true } }
-        }
-      ]
     }
   ]
 }

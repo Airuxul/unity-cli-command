@@ -39,21 +39,23 @@ set UNITY_CMD_SCENARIO=player-runtime
 npm run test:integration
 ```
 
-## editor-lifecycle (~56 steps after `repeat` expansion)
+## editor-lifecycle (~25 steps, no `repeat`)
 
-1. **Edit mode** — ping, state, catalog, compile, **wait after compile**, echo, console, profiler, exec
-2. **Play** — play, wait for editor-play endpoint
-3. **Play mode** — runtime echo on `editor_play`; catalog isolation; editor host: ping, list, state, profiler, screenshot
-4. **Exit** — stop, verify edit mode restored
-5. **Play/Stop stress** — `26_play_stop_stress` repeats 5×: play → stop → ping → echo (uses default CLI/step timeouts only)
-6. **Final gate** — state + ping confirm Editor HTTP still healthy (guards `EditorServerSupervisor` regressions)
+1. **Edit mode** — ping, state, catalog, echo, console, profiler status, exec
+2. **Play** — play, wait `editor-play`, runtime echo, catalog scope checks, state/profiler, screenshot
+3. **Exit** — stop, state, echo, final ping
 
-Do not add per-step `timeoutMs` unless a step truly needs more than `INTEGRATION_ATTACH_TIMEOUT_MS` / deferred command defaults.
+**Compile / play-stop loops** are in `compile-recompile-cycle` and `editor-reliability-stress` (not duplicated here).
 
 ### Scenario `repeat` blocks
 
-A step may define `"repeat": N` and nested `"steps": [...]`. The runner flattens these into
+A step may define `"repeat": N` ( **`N` ≤ 3** ) and nested `"steps": [...]`. The runner flattens these into
 `{parent}_{cycle}_{sub}` names (see `flattenScenarioSteps` in `lib/steps.mjs`).
+
+## editor-reliability-stress (`UNITY_CMD_INTEGRATION_STRESS=1`)
+
+- `02_compile_stress` ×3: compile → wait → ping
+- `03_play_stop_stress` ×3: play → stop → wait → ping
 
 ## compile-error-recovery (14 steps)
 
@@ -83,8 +85,7 @@ These edits live in `unity-cmd/src/client/` only. They do **not** change connect
 | **`resolveWaitProjectPath`** | `connector-readiness.js` | `wait` / `waitProfile` match `instances` heartbeat `projectPath` via `UNITY_CMD_WORKSPACE` (not CLI `cwd`) | Required when running integration from `unity-cmd/` |
 | **`confirmEditorHealth` try/catch** | `connector-readiness.js` | Transient `fetch failed` during Play/reload must not crash `wait` / `waitProfile` steps | Same success/failure decisions; only avoids uncaught exceptions |
 | **`likelyRestarting` retry loop** | `connection.js` | Heartbeat can lag while `/health` is OK — fixes flaky `list` during Play | Only when heartbeat indicates restart |
-| **`03c_wait_after_compile`** | `editor-lifecycle.json` | Domain reload after `compile` before `echo` | Test-only |
-| **`26_play_stop_stress` repeat** | `editor-lifecycle.json` | `EditorServerSupervisor` Play transition regression | Test-only |
+| **`editor-reliability-stress`** | `editor-reliability-stress.json` | compile ×3 + play/stop ×3 (max repeat 3) | Stress only |
 
 **Not affected:** `editor_play` / `player` hosts, catalog cache TTL, unit-test mocks (unless they call the same functions).
 
