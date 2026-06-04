@@ -31,6 +31,7 @@ namespace Air.UnityConnector.Server
             var wasRunning = server.IsListening;
             var port = server.Port;
 
+            EditorServerDiagnostics.Trace(site, $"PerformStop wasRunning={wasRunning}");
             EditorHttpSession.MarkCatalogNotReady();
             server.Stop();
             server.ClearListenerId();
@@ -64,6 +65,7 @@ namespace Air.UnityConnector.Server
 
             if (server.TryDescribeRunningCache(out var cacheReason))
             {
+                EditorServerDiagnostics.Trace("TryStartListening", $"path=cache_hit reason={cacheReason}");
                 if (!EditorHttpSession.IsCommandReady)
                     ReconcileRunningCache(cacheReason, "TryStartListening(cache_hit)");
                 if (!EditorHttpSession.IsCommandReady)
@@ -81,6 +83,7 @@ namespace Air.UnityConnector.Server
             if (server.IsListening
                 && server.TryProbeHealth(HealthTimeoutMs, HealthProbeAttempts, out _))
             {
+                EditorServerDiagnostics.Trace("TryStartListening", "path=reuse_listener");
                 if (string.IsNullOrEmpty(server.ListenerId))
                     server.SetListenerId(Guid.NewGuid().ToString("N"));
                 EditorHttpSession.SetListenerActive(true, "TryStartListening(reuse)");
@@ -96,6 +99,11 @@ namespace Air.UnityConnector.Server
                 WarmCatalogIfNeeded();
                 return StartAttemptResult.Running;
             }
+
+            if (server.IsListening)
+                EditorServerDiagnostics.Trace(
+                    "TryStartListening",
+                    "path=cold_start listener_was_up health_probe_failed");
 
             var prepare = EditorHttpLocalCache.PrepareForStart(
                 EditorHttpSession.SessionId,
@@ -116,6 +124,7 @@ namespace Air.UnityConnector.Server
                 return StartAttemptResult.ForeignPort;
             }
 
+            EditorServerDiagnostics.Trace("TryStartListening", "path=prebind_stop");
             PerformStop("TryStartListening(prebind)");
 
             // Skip TCP pre-check after local Stop: TIME_WAIT can look "open" without a listener.
@@ -137,6 +146,13 @@ namespace Air.UnityConnector.Server
                 var healthMsg =
                     "health probe failed after bind"
                     + (string.IsNullOrEmpty(healthError) ? "" : ": " + healthError);
+                EditorServerDiagnostics.Trace("TryStartListening(health)", healthMsg);
+                if (EditorServerSupervisor.Instance.IsHttpTransitionUnstable() && server.IsListening)
+                {
+                    EditorServerSupervisor.LogThrottled("[unity-connector] " + healthMsg + " (keeping listener for retry)");
+                    return StartAttemptResult.Failed;
+                }
+
                 if (EditorServerSupervisor.Instance.IsHttpTransitionUnstable())
                     EditorServerSupervisor.LogThrottled("[unity-connector] " + healthMsg);
                 else
@@ -157,6 +173,7 @@ namespace Air.UnityConnector.Server
 
             Debug.Log(
                 $"[unity-connector] Editor HTTP server started (port {port}, host editor, build {ConnectorBuild.Id}).");
+            EditorServerDiagnostics.Trace("TryStartListening", "path=started_fresh");
             EditorConnectorStartupLog.Clear();
 
             EditorInstanceFile.NotifyHttpServing();
@@ -243,6 +260,26 @@ namespace Air.UnityConnector.Server
                 LastSite = "";
                 LastMessage = "";
                 LastUtc = "";
+                TryDeleteFailureFileUnsafe();
+            }
+
+            EditorServerDiagnostics.Trace("startup-failure", "cleared");
+        }
+
+        private static void TryDeleteFailureFileUnsafe()
+        {
+            try
+            {
+                var path = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".unity-cmd",
+                    "last-editor-startup-failure.txt");
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+                // ignored
             }
         }
 

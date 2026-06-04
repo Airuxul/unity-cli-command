@@ -89,6 +89,7 @@ namespace Air.UnityConnector
             if (!_core.IsListening)
             {
                 reason = "IsListening=false";
+                EditorServerDiagnostics.Trace("TryDescribeRunningCache", reason);
                 return false;
             }
 
@@ -98,6 +99,7 @@ namespace Air.UnityConnector
                     out var healthError))
             {
                 reason = "health_probe_failed:" + (healthError ?? "unknown");
+                EditorServerDiagnostics.Trace("TryDescribeRunningCache", reason);
                 return false;
             }
 
@@ -107,6 +109,7 @@ namespace Air.UnityConnector
                     _listenerId))
             {
                 reason = "disk_cache_listener_mismatch";
+                EditorServerDiagnostics.Trace("TryDescribeRunningCache", reason);
                 return false;
             }
 

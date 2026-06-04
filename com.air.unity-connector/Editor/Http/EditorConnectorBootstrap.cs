@@ -61,6 +61,7 @@ namespace Air.UnityConnector
 
         private static void OnBeforeAssemblyReload()
         {
+            EditorServerDiagnostics.Trace("OnBeforeAssemblyReload", null);
             CliCommandDiscovery.Invalidate();
             InvokeCatalog.ClearCachedVersions();
             EditorJobStateManager.FlushToLedger();
@@ -80,6 +81,7 @@ namespace Air.UnityConnector
 
         private static void OnPlayModeStateChanged(PlayModeStateChange state)
         {
+            EditorServerDiagnostics.Trace("playModeStateChanged", state.ToString());
             switch (state)
             {
                 case PlayModeStateChange.ExitingEditMode:

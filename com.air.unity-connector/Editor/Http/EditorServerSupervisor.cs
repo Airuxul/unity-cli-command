@@ -42,6 +42,9 @@ namespace Air.UnityConnector.Server
 
         public EditorServerSupervisorPhase Phase { get; private set; } = EditorServerSupervisorPhase.Stopped;
 
+        internal int FailureBurst => _failureBurst;
+        internal int EnsurePass => _ensurePass;
+
         public static void RequestEnsureRunning(int delayFrames = 1) =>
             Instance.RequestStart(delayFrames);
 
@@ -75,7 +78,7 @@ namespace Air.UnityConnector.Server
                 if (Phase == EditorServerSupervisorPhase.Draining)
                     return;
 
-                EnterDraining(thenStart: false);
+                EnterDraining("RequestDrain", thenStart: false);
             }
         }
 
@@ -85,7 +88,7 @@ namespace Air.UnityConnector.Server
             lock (_gate)
             {
                 ResetTransientBackoff();
-                EnterDraining(thenStart: true);
+                EnterDraining("RequestControlledRestart", thenStart: true);
             }
         }
 
@@ -123,7 +126,7 @@ namespace Air.UnityConnector.Server
             if (IsInBackoff() || IsHttpTransitionUnstable())
                 return;
 
-            if (EditorConnectorServer.Instance.TryDescribeRunningCache(out _))
+            if (EditorConnectorServer.Instance.TryDescribeRunningCache(out var watchdogCacheReason))
             {
                 if (Phase == EditorServerSupervisorPhase.Running)
                 {
@@ -146,13 +149,18 @@ namespace Air.UnityConnector.Server
                 EditorConnectorStartupLog.Record(
                     "OnWatchdog",
                     $"Starting phase stuck >{StartingStuckSeconds:0}s — resetting to Stopped");
-                EnterStopped();
+                EnterStopped("OnWatchdog:starting_stuck");
                 RequestStart(0);
                 return;
             }
 
             if (Phase == EditorServerSupervisorPhase.Starting)
                 return;
+
+            if (!EditorConnectorServer.Instance.TryDescribeRunningCache(out var notReadyReason))
+                EditorServerDiagnostics.Decision(
+                    "OnWatchdog",
+                    $"RequestStart cache_miss:{notReadyReason} burst={_failureBurst} pass={_ensurePass}");
 
             RequestStart(0);
         }
@@ -204,6 +212,7 @@ namespace Air.UnityConnector.Server
         internal void OnPlayModeSettled()
         {
             MarkPlayTransition();
+            EditorServerDiagnostics.Trace("OnPlayModeSettled", "entered");
 
             if (EditorConnectorServer.Instance.IsListening)
             {
@@ -211,16 +220,19 @@ namespace Air.UnityConnector.Server
                 {
                     if (EditorConnectorServer.Instance.TryDescribeRunningCache(out var reason))
                     {
+                        EditorServerDiagnostics.Decision("OnPlayModeSettled", $"reconcile:{reason}");
                         EditorServerLifecycle.ReconcileRunningCache(reason, "OnPlayModeSettled");
                         EnterRunning(reconcileOnly: true);
                         return;
                     }
                 }
 
+                EditorServerDiagnostics.Decision("OnPlayModeSettled", "defer:listener_up_cache_miss");
                 RequestStart(5);
                 return;
             }
 
+            EditorServerDiagnostics.Decision("OnPlayModeSettled", "defer:listener_down");
             RequestStart(8);
         }
 
@@ -234,13 +246,17 @@ namespace Air.UnityConnector.Server
         private void EnqueueStart(bool immediate)
         {
             if (IsInBackoff())
+            {
+                EditorServerDiagnostics.Decision("EnqueueStart", "skip:in_backoff");
                 return;
+            }
 
             if (immediate)
                 _nextWatchdogUtc = 0;
 
             if (ShouldDeferStart())
             {
+                EditorServerDiagnostics.Decision("EnqueueStart", "defer:transition_unstable");
                 RequestStart(5);
                 return;
             }
@@ -248,15 +264,22 @@ namespace Air.UnityConnector.Server
             lock (_gate)
             {
                 if (Phase == EditorServerSupervisorPhase.Draining)
+                {
+                    EditorServerDiagnostics.Decision("EnqueueStart", "skip:draining");
                     return;
+                }
 
                 if (Phase == EditorServerSupervisorPhase.Starting)
+                {
+                    EditorServerDiagnostics.Decision("EnqueueStart", "skip:starting");
                     return;
+                }
 
                 if (Phase == EditorServerSupervisorPhase.Running)
                 {
                     if (EditorConnectorServer.Instance.TryDescribeRunningCache(out var runningReason))
                     {
+                        EditorServerDiagnostics.Decision("EnqueueStart", $"running:reconcile({runningReason})");
                         EditorServerLifecycle.ReconcileRunningCache(runningReason, "RequestStart(running)");
                         return;
                     }
@@ -265,33 +288,41 @@ namespace Air.UnityConnector.Server
                     {
                         if (ShouldDeferStart())
                         {
+                            EditorServerDiagnostics.Decision("EnqueueStart", "running:defer_reuse_listener");
                             RequestStart(5);
                             return;
                         }
 
+                        EditorServerDiagnostics.Decision("EnqueueStart", "running:EnterStarting(reuse_listener)");
                         EnterStarting();
                         return;
                     }
 
-                    EnterDraining(thenStart: true);
+                    EditorServerDiagnostics.Decision("EnqueueStart", "running:EnterDraining(not_listening)");
+                    EnterDraining("RequestStart(running)", thenStart: true);
                     return;
                 }
 
                 if (Phase == EditorServerSupervisorPhase.BackoffForeign)
                 {
                     if (IsInBackoff())
+                    {
+                        EditorServerDiagnostics.Decision("EnqueueStart", "skip:backoff_foreign");
                         return;
+                    }
 
-                    EnterStopped();
+                    SetPhase(EditorServerSupervisorPhase.Stopped, "EnqueueStart:foreign_expired");
                 }
 
                 if (EditorConnectorServer.Instance.TryDescribeRunningCache(out var cacheReason))
                 {
+                    EditorServerDiagnostics.Decision("EnqueueStart", $"cache_hit:{cacheReason}");
                     EditorServerLifecycle.ReconcileRunningCache(cacheReason, "RequestStart(cache_hit)");
                     EnterRunning(reconcileOnly: true);
                     return;
                 }
 
+                EditorServerDiagnostics.Decision("EnqueueStart", "EnterStarting");
                 EnterStarting();
             }
         }
@@ -302,26 +333,30 @@ namespace Air.UnityConnector.Server
         {
             if (IsHttpTransitionUnstable())
             {
-                EnterStopped();
+                EditorServerDiagnostics.Trace("HandleStartFailure", "defer:no_log_during_transition");
+                SetPhase(EditorServerSupervisorPhase.Stopped, "HandleStartFailure:transitional");
                 RequestStart(5);
                 return;
             }
 
             _ensurePass++;
+            EditorServerDiagnostics.Trace(
+                "HandleStartFailure",
+                $"attempt {_ensurePass}/{EnsureRetriesPerBurst} burst={_failureBurst}");
             EditorConnectorStartupLog.Record(
                 "HandleStartFailure",
-                $"start attempt {_ensurePass}/{EnsureRetriesPerBurst} failed (phase={Phase})");
+                $"start attempt {_ensurePass}/{EnsureRetriesPerBurst} failed (phase={Phase}) | {EditorServerDiagnostics.CaptureSnapshot()}");
 
             if (_ensurePass < EnsureRetriesPerBurst)
             {
-                EnterStopped();
+                EnterStopped("HandleStartFailure:retry");
                 RequestStart(2);
                 return;
             }
 
             _ensurePass = 0;
             RegisterFailureBurst();
-            EnterStopped();
+            EnterStopped("HandleStartFailure:burst");
         }
 
         private void RegisterFailureBurst()
@@ -339,13 +374,23 @@ namespace Air.UnityConnector.Server
             EditorConnectorStartupLog.Record("RegisterFailureBurst", message);
         }
 
-        private void EnterStopped() => Phase = EditorServerSupervisorPhase.Stopped;
-
-        private void EnterDraining(bool thenStart)
+        private void SetPhase(EditorServerSupervisorPhase next, string site)
         {
-            Phase = EditorServerSupervisorPhase.Draining;
-            EditorServerLifecycle.PerformStop("EnterDraining");
-            EnterStopped();
+            if (Phase == next)
+                return;
+
+            EditorServerDiagnostics.Phase(Phase, next, site);
+            Phase = next;
+        }
+
+        private void EnterStopped(string site = "EnterStopped") =>
+            SetPhase(EditorServerSupervisorPhase.Stopped, site);
+
+        private void EnterDraining(string site, bool thenStart)
+        {
+            SetPhase(EditorServerSupervisorPhase.Draining, site);
+            EditorServerLifecycle.PerformStop(site);
+            EnterStopped(site + ":after_stop");
 
             if (!thenStart)
                 return;
@@ -355,7 +400,7 @@ namespace Air.UnityConnector.Server
 
         private void EnterStarting()
         {
-            Phase = EditorServerSupervisorPhase.Starting;
+            SetPhase(EditorServerSupervisorPhase.Starting, "EnterStarting");
             _startingSinceUtc = EditorApplication.timeSinceStartup;
             // Run synchronously: delayCall may not run during domain reload / script compile.
             RunStartingSequence();
@@ -384,7 +429,7 @@ namespace Air.UnityConnector.Server
 
         private void EnterRunning(bool reconcileOnly)
         {
-            Phase = EditorServerSupervisorPhase.Running;
+            SetPhase(EditorServerSupervisorPhase.Running, reconcileOnly ? "EnterRunning:reconcile" : "EnterRunning");
             if (reconcileOnly)
                 return;
 
@@ -393,7 +438,7 @@ namespace Air.UnityConnector.Server
 
         private void EnterBackoffForeign()
         {
-            Phase = EditorServerSupervisorPhase.BackoffForeign;
+            SetPhase(EditorServerSupervisorPhase.BackoffForeign, "EnterBackoffForeign");
             ScheduleBackoffRetry();
         }
 
@@ -412,7 +457,7 @@ namespace Air.UnityConnector.Server
 
                 lock (_gate)
                 {
-                    EnterStopped();
+                    EnterStopped("ScheduleBackoffRetry");
                     RequestStart(0);
                 }
             };

@@ -81,3 +81,5 @@ These edits live in `unity-cmd/src/client/` only. They do **not** change connect
 - Play transition — no `ResetTransientBackoff` on enter Play/Edit (avoids retry storm right after failures).
 
 Recompile the Unity project after pulling connector changes.
+
+When integration fails after Play/Stop, inspect `~/.unity-cmd/editor-server-trace.log` (filter Unity Console: `[unity-connector][supervisor]`).

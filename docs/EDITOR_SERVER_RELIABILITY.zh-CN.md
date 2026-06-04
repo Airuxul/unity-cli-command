@@ -308,7 +308,30 @@ stateDiagram-v2
 
 ---
 
-## 11. 相关文档
+## 11. 诊断日志（问题复现时用）
+
+| 输出 | 路径 / 过滤 |
+|------|-------------|
+| Supervisor 决策轨迹 | Console：`[unity-connector][supervisor]` |
+| 环形文件日志 | `~/.unity-cmd/editor-server-trace.log`（约 512KB 后保留尾部） |
+| 最后一次启动失败 | `~/.unity-cmd/last-editor-startup-failure.txt`（成功启动后自动删除） |
+| 会话心跳 | `~/.unity-cmd/instances/{hash}.json` |
+| 磁盘 cache | `~/.unity-cmd/editor-http.json` |
+
+每条 supervisor 日志含 **site**（调用点）、**phase 变迁**、**EnqueueStart 分支**（如 `running:EnterStarting(reuse_listener)`）、以及快照字段（`IsListening`、`cacheMatch`、`disk=status=...`）。
+
+**已知漏洞与代码对策（2026-06）：**
+
+1. **磁盘 cache 滞后** — `TryStartListening(reuse)`：监听中且 `/health` 通过则只 `MarkRunning`，不 `PerformStop(prebind)`。
+2. **Running + 仍在监听但 cache 未对齐** — `EnterStarting(reuse)`，禁止 `EnterDraining`。
+3. **Play/编译过渡期** — `HandleStartFailure` 不记 `startup-failure`；bind 后 health 失败且仍在监听时不 `PerformStop`（保留 listener 重试）。
+4. **Watchdog 与 Play 竞态** — 过渡期内不跑 watchdog 的 `RequestStart`。
+
+复现 Play/Stop 问题时：先打包 `editor-server-trace.log` + `last-editor-startup-failure.txt`，搜索 `PerformStop`、`EnterDraining`、`RegisterFailureBurst`。
+
+---
+
+## 12. 相关文档
 
 | 文档 | 路径 |
 |------|------|

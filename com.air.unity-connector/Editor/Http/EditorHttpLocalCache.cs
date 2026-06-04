@@ -196,6 +196,19 @@ namespace Air.UnityConnector
             }
         }
 
+        internal static string DescribeForDiagnostics()
+        {
+            lock (FileGate)
+            {
+                var cache = LoadUnsafe();
+                if (cache == null)
+                    return "cache=null";
+
+                var lid = string.IsNullOrEmpty(cache.ListenerId) ? "-" : cache.ListenerId.Substring(0, Math.Min(8, cache.ListenerId.Length));
+                return $"status={cache.Status ?? "?"} pid={cache.Pid} lid={lid} phase={cache.Phase ?? "-"}";
+            }
+        }
+
         public static bool MatchesRunningListener(string sessionId, int port, string listenerId)
         {
             lock (FileGate)
